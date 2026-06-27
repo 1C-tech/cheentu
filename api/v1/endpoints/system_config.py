@@ -255,10 +255,10 @@ def update_system_config(
     """Validate and persist system configuration updates."""
     try:
         payload = service.update(
-            config_version=request.config_version,
-            items=[item.model_dump() for item in request.items],
-            mask_token=request.mask_token,
-            reload_now=request.reload_now,
+            config_version=req.config_version,
+            items=[item.model_dump() for item in req.items],
+            mask_token=req.mask_token,
+            reload_now=req.reload_now,
         )
         return UpdateSystemConfigResponse.model_validate(payload)
     except ConfigValidationError as exc:
@@ -367,9 +367,9 @@ def import_system_config(
 
     try:
         payload = service.import_env(
-            config_version=request.config_version,
+            config_version=req.config_version,
             content=request.content,
-            reload_now=request.reload_now,
+            reload_now=req.reload_now,
         )
         return UpdateSystemConfigResponse.model_validate(payload)
     except ConfigImportError as exc:
@@ -425,7 +425,7 @@ def validate_system_config(
 ) -> ValidateSystemConfigResponse:
     """Run pre-save validation only."""
     try:
-        payload = service.validate(items=[item.model_dump() for item in request.items])
+        payload = service.validate(items=[item.model_dump() for item in req.items])
         return ValidateSystemConfigResponse.model_validate(payload)
     except Exception as exc:
         logger.error("Failed to validate system configuration: %s", exc, exc_info=True)
@@ -502,8 +502,8 @@ def test_notification_channel(
     try:
         payload = service.test_notification_channel(
             channel=request.channel,
-            items=[item.model_dump() for item in request.items],
-            mask_token=request.mask_token,
+            items=[item.model_dump() for item in req.items],
+            mask_token=req.mask_token,
             title=request.title,
             content=request.content,
             timeout_seconds=request.timeout_seconds,

@@ -7,9 +7,10 @@ import logging
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from api.deps import get_user_id
 from api.v1.errors import api_error
 from api.v1.schemas.analysis import DuplicateTaskErrorResponse, TaskAccepted
 from api.v1.schemas.common import ErrorResponse
@@ -103,6 +104,7 @@ def create_account(request: PortfolioAccountCreateRequest) -> PortfolioAccountIt
     summary="List portfolio accounts",
 )
 def list_accounts(
+    request: Request,
     include_inactive: bool = Query(False, description="Whether to include inactive accounts"),
 ) -> PortfolioAccountListResponse:
     service = PortfolioService()
