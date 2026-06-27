@@ -462,6 +462,7 @@ class DecisionSignalRepository:
     @staticmethod
     def _build_conditions(
         *,
+        user_id=None,
         stock_codes: Optional[List[str]],
         stock_identities: Optional[List[Tuple[str, str]]],
         market: Optional[str],
