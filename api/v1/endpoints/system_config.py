@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 
@@ -161,7 +162,8 @@ def get_system_config(
                         "LLM_MODEL": user.llm_model,
                     }
                     # Overlay notification channels from user record
-                    nc = json.loads(user.notification_channels or "{}")
+                    import json as _sys_json
+                    nc = _sys_json.loads(user.notification_channels or "{}")
                     # Map notification channel JSON keys to system config env keys
                     nc_key_map = {
                         "wechat_webhook_url": "WECHAT_WEBHOOK_URL",

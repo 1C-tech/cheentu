@@ -1461,7 +1461,7 @@ class DatabaseManager(metaclass=_DatabaseManagerMeta):
     @classmethod
 
     def _migrate_user_ids(self):
-        """Set user_id=1 for existing records (admin data migration)."""
+        """Add user_id columns and set user_id=1 for existing records (admin data migration)."""
         from sqlalchemy import text
         tables_with_user = [
             "analysis_history", "backtest_results", "backtest_summaries",
@@ -1470,6 +1470,12 @@ class DatabaseManager(metaclass=_DatabaseManagerMeta):
         ]
         try:
             with self._engine.connect() as conn:
+                for t in tables_with_user:
+                    try:
+                        conn.execute(text(f"ALTER TABLE {t} ADD COLUMN user_id INTEGER DEFAULT 1"))
+                        conn.commit()
+                    except Exception:
+                        pass  # Column may already exist
                 for t in tables_with_user:
                     try:
                         conn.execute(text(f"UPDATE {t} SET user_id = 1 WHERE user_id IS NULL"))
