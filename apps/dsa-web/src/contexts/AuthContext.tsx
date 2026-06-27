@@ -1,8 +1,20 @@
-import type React from 'react';
+﻿import type React from 'react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { createParsedApiError, getParsedApiError, type ParsedApiError } from '../api/error';
 import { authApi } from '../api/auth';
 import { useStockPoolStore } from '../stores';
+
+type LoginFn = (
+  usernameOrPassword: string,
+  passwordOrConfirm?: string,
+  forAdminSetup?: string
+) => Promise<{ success: boolean; error?: ParsedApiError }>;
+
+type RegisterFn = (
+  username: string,
+  email: string,
+  password: string
+) => Promise<{ success: boolean; error?: ParsedApiError }>;
 
 type AuthContextValue = {
   authEnabled: boolean;
@@ -12,7 +24,10 @@ type AuthContextValue = {
   setupState: 'enabled' | 'password_retained' | 'no_password';
   isLoading: boolean;
   loadError: ParsedApiError | null;
-  login: (password: string, passwordConfirm?: string) => Promise<{ success: boolean; error?: ParsedApiError }>;
+  multiUser: boolean;
+  currentUsername: string | null;
+  login: LoginFn;
+  register: RegisterFn;
   changePassword: (
     currentPassword: string,
     newPassword: string,
@@ -28,8 +43,8 @@ function extractLoginError(err: unknown): ParsedApiError {
   const parsed = getParsedApiError(err);
   if (parsed.status === 429) {
     return createParsedApiError({
-      title: '登录尝试过于频繁',
-      message: '尝试次数过多，请稍后再试。',
+      title: 'Too many attempts',
+      message: 'Too many failed attempts. Please try again later.',
       rawMessage: parsed.rawMessage,
       status: parsed.status,
       category: parsed.category,
@@ -46,6 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [setupState, setSetupState] = useState<'enabled' | 'password_retained' | 'no_password'>('no_password');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<ParsedApiError | null>(null);
+  const [multiUser, setMultiUser] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPasswordSet(status.passwordSet ?? false);
       setPasswordChangeable(status.passwordChangeable ?? false);
       setSetupState(status.setupState);
+      setMultiUser(status.multiUser ?? false);
+      setCurrentUsername(status.username ?? null);
       if (status.authEnabled && !status.loggedIn) {
         useStockPoolStore.getState().resetDashboardState();
       }
@@ -67,6 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPasswordSet(false);
       setPasswordChangeable(false);
       setSetupState('no_password');
+      setMultiUser(false);
+      setCurrentUsername(null);
       useStockPoolStore.getState().resetDashboardState();
     } finally {
       setIsLoading(false);
@@ -77,20 +98,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void fetchStatus();
   }, [fetchStatus]);
 
-  const login = useCallback(
-    async (
-      password: string,
-      passwordConfirm?: string
-    ): Promise<{ success: boolean; error?: ParsedApiError }> => {
+  // Multi-user login: login(username, password)
+  // Admin setup: login(password, passwordConfirm)
+  const login = useCallback<LoginFn>(
+    async (arg1, arg2, arg3) => {
       try {
-        await authApi.login(password, passwordConfirm);
+        if (setupState === 'no_password' || (!passwordSet && !multiUser)) {
+          // Admin first-time setup: password + confirm
+          await authApi.login('admin', arg1, arg2);
+        } else if (multiUser) {
+          // Multi-user: username + password
+          await authApi.login(arg1, arg2!);
+        } else {
+          // Legacy single-admin: password
+          await authApi.login('admin', arg1, arg2);
+        }
         await fetchStatus();
         return { success: true };
       } catch (err: unknown) {
         return { success: false, error: extractLoginError(err) };
       }
     },
-    [fetchStatus]
+    [fetchStatus, setupState, passwordSet, multiUser]
+  );
+
+  const register = useCallback<RegisterFn>(
+    async (username, email, password) => {
+      try {
+        await authApi.register(username, email, password);
+        return { success: true };
+      } catch (err: unknown) {
+        return { success: false, error: extractLoginError(err) };
+      }
+    },
+    []
   );
 
   const changePassword = useCallback(
@@ -134,7 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setupState,
         isLoading,
         loadError,
+        multiUser,
+        currentUsername,
         login,
+        register,
         changePassword,
         logout,
         refreshStatus: fetchStatus,
@@ -145,7 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- useAuth is a hook, co-located for context access
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) {

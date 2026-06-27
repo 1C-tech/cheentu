@@ -1,4 +1,4 @@
-import apiClient from './index';
+﻿import apiClient from './index';
 
 export type AuthStatusResponse = {
   authEnabled: boolean;
@@ -6,6 +6,8 @@ export type AuthStatusResponse = {
   passwordSet?: boolean;
   passwordChangeable?: boolean;
   setupState: 'enabled' | 'password_retained' | 'no_password';
+  multiUser?: boolean;
+  username?: string;
 };
 
 export const authApi = {
@@ -39,12 +41,33 @@ export const authApi = {
     return data;
   },
 
-  async login(password: string, passwordConfirm?: string): Promise<void> {
-    const body: { password: string; passwordConfirm?: string } = { password };
+  // Multi-user login
+  async login(username: string, password: string, passwordConfirm?: string): Promise<{ token?: string }> {
+    const body: { username: string; password: string; passwordConfirm?: string } = {
+      username,
+      password,
+    };
     if (passwordConfirm !== undefined) {
       body.passwordConfirm = passwordConfirm;
     }
-    await apiClient.post('/api/v1/auth/login', body);
+    const { data } = await apiClient.post<{ token?: string }>('/api/v1/auth/login', body);
+    if (data.token) {
+      localStorage.setItem('cheentu_token', data.token);
+    }
+    return data;
+  },
+
+  // Multi-user register
+  async register(username: string, email: string, password: string): Promise<{ token?: string }> {
+    const { data } = await apiClient.post<{ token?: string }>('/api/v1/auth/register', {
+      username,
+      email,
+      password,
+    });
+    if (data.token) {
+      localStorage.setItem('cheentu_token', data.token);
+    }
+    return data;
   },
 
   async changePassword(
@@ -60,6 +83,11 @@ export const authApi = {
   },
 
   async logout(): Promise<void> {
+    localStorage.removeItem('cheentu_token');
     await apiClient.post('/api/v1/auth/logout');
+  },
+
+  getToken(): string | null {
+    return localStorage.getItem('cheentu_token');
   },
 };

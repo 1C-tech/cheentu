@@ -1,272 +1,545 @@
-import type React from 'react';
-import { useState, useEffect } from 'react';
-import { motion, useMotionValue, useTransform, useSpring } from "motion/react";
-import { Lock, Loader2, Cpu, TrendingUp, Network, ShieldCheck } from "lucide-react";
-import { Button, Input, ParticleBackground } from '../components/common';
-import { UiLanguageToggle } from '../components/i18n/UiLanguageToggle';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { ParsedApiError } from '../api/error';
-import { isParsedApiError } from '../api/error';
-import { useAuth } from '../hooks';
-import { useUiLanguage } from '../contexts/UiLanguageContext';
-import { SettingsAlert } from '../components/settings';
+﻿import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "motion/react";
+import { Lock, Mail, User, Loader2, TrendingUp, ShieldCheck, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Button } from "../components/common";
+import { UiLanguageToggle } from "../components/i18n/UiLanguageToggle";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import type { ParsedApiError } from "../api/error";
+import { isParsedApiError } from "../api/error";
+import { useAuth } from "../hooks";
+import { useUiLanguage } from "../contexts/UiLanguageContext";
 
-const LoginPage: React.FC = () => {
-  const { login, passwordSet, setupState } = useAuth();
-  const { t } = useUiLanguage();
-  const navigate = useNavigate();
+// ---------- Types ----------
 
-  // Set page title
-  useEffect(() => {
-    document.title = t('login.pageTitle');
-  }, [t]);
-  const [searchParams] = useSearchParams();
-  const rawRedirect = searchParams.get('redirect') ?? '';
-  const redirect =
-    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
+type Mode = "login" | "register";
 
-  const [password, setPassword] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | ParsedApiError | null>(null);
+interface FormState {
+  username: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+}
 
-  const isFirstTime = setupState === 'no_password' || !passwordSet;
+// ---------- Sparkline SVG (decorative) ----------
 
-  // 3D Tilt effect values
+const Sparkline = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 120 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M0 20L8 16L16 18L24 10L32 12L40 4L48 8L56 2L64 6L72 0L80 4L88 6L96 2L104 8L112 4L120 6"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity="0.25"
+    />
+  </svg>
+);
+
+// ---------- Background Grid ----------
+
+const GridBackground = () => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-
-  // Smooth out the mouse movement
-  const smoothX = useSpring(mouseX, { damping: 30, stiffness: 200 });
-  const smoothY = useSpring(mouseY, { damping: 30, stiffness: 200 });
+  const smoothX = useSpring(mouseX, { damping: 50, stiffness: 100 });
+  const smoothY = useSpring(mouseY, { damping: 50, stiffness: 100 });
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      const x = e.clientX / window.innerWidth - 0.5;
-      const y = e.clientY / window.innerHeight - 0.5;
-      mouseX.set(x);
-      mouseY.set(y);
+      mouseX.set((e.clientX / window.innerWidth - 0.5) * 20);
+      mouseY.set((e.clientY / window.innerHeight - 0.5) * 20);
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY]);
 
+  return (
+    <motion.div
+      style={{ x: smoothX, y: smoothY }}
+      className="absolute inset-0 z-0 opacity-[0.03]"
+    >
+      <div className="h-full w-full bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-[size:64px_64px]" />
+    </motion.div>
+  );
+};
+
+// ---------- Animated Orb ----------
+
+const AnimatedOrb = ({
+  className,
+  delay = 0,
+  size = 300,
+  duration = 8,
+}: {
+  className?: string;
+  delay?: number;
+  size?: number;
+  duration?: number;
+}) => (
+  <motion.div
+    animate={{
+      scale: [1, 1.2, 0.9, 1.1, 1],
+      x: [0, 30, -20, 10, 0],
+      y: [0, -20, 10, -30, 0],
+    }}
+    transition={{
+      duration,
+      repeat: Infinity,
+      delay,
+      ease: "easeInOut",
+    }}
+    className={`absolute rounded-full blur-[120px] ${className}`}
+    style={{ width: size, height: size }}
+  />
+);
+
+// ---------- Input Field ----------
+
+interface AuthInputProps {
+  id: string;
+  type: string;
+  icon: React.ReactNode;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  autoFocus?: boolean;
+  autoComplete?: string;
+  showToggle?: boolean;
+  onToggle?: () => void;
+  error?: string;
+}
+
+const AuthInput: React.FC<AuthInputProps> = ({
+  id,
+  type,
+  icon,
+  label,
+  placeholder,
+  value,
+  onChange,
+  disabled,
+  autoFocus,
+  autoComplete,
+  showToggle,
+  onToggle,
+  error,
+}) => (
+  <div className="group">
+    <label htmlFor={id} className="mb-1.5 block text-xs font-medium tracking-wide text-white/40 uppercase">
+      {label}
+    </label>
+    <div className="relative">
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-white/30">
+        {icon}
+      </div>
+      <input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        autoFocus={autoFocus}
+        autoComplete={autoComplete}
+        className="w-full rounded-xl border border-white/[0.06] bg-white/[0.03] py-3 pl-11 pr-11 text-sm text-white placeholder:text-white/20 outline-none transition-all duration-200 focus:border-white/[0.15] focus:bg-white/[0.05] focus:shadow-[0_0_0_4px_rgba(255,255,255,0.02)] hover:border-white/[0.1] hover:bg-white/[0.04] disabled:opacity-40"
+      />
+      {showToggle !== undefined && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-white/25 hover:text-white/50 transition-colors"
+          tabIndex={-1}
+        >
+          {showToggle ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      )}
+    </div>
+    {error && <p className="mt-1 text-xs text-red-400/80">{error}</p>}
+  </div>
+);
+
+// ---------- Main Component ----------
+
+const LoginPage: React.FC = () => {
+  const { login, register, passwordSet, setupState } = useAuth();
+  const { t } = useUiLanguage();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawRedirect = searchParams.get("redirect") ?? "";
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
+
+  const [mode, setMode] = useState<Mode>("login");
+  const [form, setForm] = useState<FormState>({
+    username: "",
+    email: "",
+    password: "",
+    passwordConfirm: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | ParsedApiError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+
+  // Admin single-user fallback
+  const isAdminSetup = setupState === "no_password" || !passwordSet;
+
+  const updateField = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+    setError(null);
+  };
+
+  const validate = (): boolean => {
+    const errors: Partial<Record<keyof FormState, string>> = {};
+
+    if (mode === "register" || (!isAdminSetup && mode === "login")) {
+      if (!form.username.trim() || form.username.trim().length < 3) {
+        errors.username = "Username must be at least 3 characters";
+      }
+    }
+
+    if (mode === "register") {
+      if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        errors.email = "Please enter a valid email";
+      }
+      if (form.password !== form.passwordConfirm) {
+        errors.passwordConfirm = "Passwords do not match";
+      }
+    }
+
+    if (!form.password || form.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (isFirstTime && password !== passwordConfirm) {
-      setError(t('login.passwordMismatch'));
-      return;
-    }
+    if (!validate()) return;
+
     setIsSubmitting(true);
     try {
-      const result = await login(password, isFirstTime ? passwordConfirm : undefined);
-      if (result.success) {
-        navigate(redirect, { replace: true });
+      if (isAdminSetup) {
+        // Admin first-time setup: password only
+        const result = await login(form.password, form.passwordConfirm || undefined);
+        if (result.success) {
+          navigate(redirect, { replace: true });
+        } else {
+          setError(result.error ?? "Setup failed");
+        }
+      } else if (mode === "login") {
+        const result = await login(form.username, form.password);
+        if (result.success) {
+          navigate(redirect, { replace: true });
+        } else {
+          setError(result.error ?? "Login failed");
+        }
       } else {
-        setError(result.error ?? t('login.loginFailed'));
+        // Register
+        const result = await register(form.username, form.email, form.password);
+        if (result.success) {
+          // Auto-login after register
+          const loginResult = await login(form.username, form.password);
+          if (loginResult.success) {
+            navigate(redirect, { replace: true });
+          } else {
+            setMode("login");
+            setError("Account created! Please log in.");
+          }
+        } else {
+          setError(result.error ?? "Registration failed");
+        }
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-[var(--login-bg-main)] py-12 font-sans selection:bg-[var(--login-accent-soft)] sm:px-6 lg:px-8 [perspective:1500px]">
-      {/* Dynamic Background */}
-      <ParticleBackground />
+  const toggleMode = () => {
+    setMode((prev) => (prev === "login" ? "register" : "login"));
+    setError(null);
+    setFieldErrors({});
+  };
 
+  // Page title
+  useEffect(() => {
+    document.title = mode === "login" ? "Cheentu — Sign In" : "Cheentu — Create Account";
+  }, [mode]);
+
+  return (
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#05070A] px-4 py-12 font-sans selection:bg-white/10">
+      {/* Background layers */}
+      <GridBackground />
+
+      <AnimatedOrb
+        className="-top-20 -right-20 bg-indigo-500/15"
+        delay={0}
+        size={400}
+        duration={10}
+      />
+      <AnimatedOrb
+        className="-bottom-32 -left-32 bg-emerald-500/10"
+        delay={3}
+        size={500}
+        duration={12}
+      />
+      <AnimatedOrb
+        className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-amber-500/5"
+        delay={6}
+        size={300}
+        duration={14}
+      />
+
+      {/* Language toggle */}
       <div className="absolute right-4 top-4 z-30">
         <UiLanguageToggle />
       </div>
 
-      {/* Cyber Grid */}
-      <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,var(--login-grid-line)_1px,transparent_1px),linear-gradient(to_bottom,var(--login-grid-line)_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:var(--login-grid-mask)]" />
+      {/* Brand mark — top left */}
+      <div className="absolute left-6 top-6 z-20 flex items-center gap-2.5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] ring-1 ring-white/[0.06]">
+          <TrendingUp className="h-4 w-4 text-white/70" />
+        </div>
+        <span className="text-sm font-medium tracking-wide text-white/50">Cheentu</span>
+      </div>
 
-      {/* Parallax Glowing Orbs */}
+      {/* Main card */}
       <motion.div
-        style={{
-          x: useTransform(smoothX, [-0.5, 0.5], [-50, 50]),
-          y: useTransform(smoothY, [-0.5, 0.5], [-50, 50]),
-        }}
-        className="absolute left-[20%] top-[20%] -z-10 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--login-accent-glow)] blur-[100px]"
-      />
-      <motion.div
-        style={{
-          x: useTransform(smoothX, [-0.5, 0.5], [60, -60]),
-          y: useTransform(smoothY, [-0.5, 0.5], [60, -60]),
-        }}
-        className="absolute right-[20%] bottom-[10%] -z-10 h-[400px] w-[400px] translate-x-1/2 translate-y-1/2 rounded-full bg-emerald-600/10 blur-[120px]"
-      />
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-[400px]"
+      >
+        <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 shadow-2xl shadow-black/30 backdrop-blur-xl">
+          {/* Card shimmer edge */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="flex flex-col items-center justify-center mb-10 relative"
-        >
-          {/* Immersive Full-Height Background Logo */}
-          <motion.div
-            style={{
-              x: useTransform(smoothX, [-0.5, 0.5], [-8, 8]),
-              y: useTransform(smoothY, [-0.5, 0.5], [-8, 8]),
-              rotate: useTransform(smoothX, [-0.5, 0.5], [-0.5, 0.5]),
-            }}
-            className="pointer-events-none absolute -top-[20vh] -z-10 opacity-80"
-          >
-            <div className="relative flex h-[120vh] w-[120vh] items-center justify-center rounded-full border border-[var(--login-accent-soft)] bg-gradient-to-br from-[var(--login-accent-soft)] to-[hsl(214_100%_20%_/_0.18)] shadow-[inset_0_0_200px_var(--login-accent-glow)] blur-[4px]">
-              <Cpu className="h-[70vh] w-[70vh] text-[hsl(200_80%_22%_/_0.4)] brightness-50" />
-              <TrendingUp className="absolute h-[25vh] w-[25vh] translate-x-[15vh] translate-y-[15vh] text-emerald-900/30 brightness-50" />
-            </div>
-          </motion.div>
-
-          <div className="mt-8 flex flex-col items-center">
-            <h2 className="text-4xl font-extrabold tracking-tighter text-[var(--login-text-primary)] sm:text-6xl">
-              <span className="bg-gradient-to-r from-[var(--login-text-primary)] via-[var(--login-text-primary)] to-[var(--login-text-secondary)] bg-clip-text text-transparent">DAILY </span>
-              <span className="bg-gradient-to-r from-[var(--login-brand-start)] to-[var(--login-brand-end)] bg-clip-text text-transparent drop-shadow-[0_0_20px_var(--login-accent-glow)]">STOCK</span>
-            </h2>
-            <h3 className="mt-1 text-xl font-bold uppercase tracking-[0.5em] text-[var(--login-text-muted)]">
-              Analysis Engine
-            </h3>
+          {/* Header */}
+          <div className="mb-8 space-y-2">
+            {isAdminSetup ? (
+              <>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20">
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                </div>
+                <h1 className="text-xl font-semibold tracking-tight text-white">Set Up Admin Password</h1>
+                <p className="text-sm leading-relaxed text-white/35">
+                  First-time setup. Choose a strong password for the admin account.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mb-1 flex items-center gap-3">
+                  <Sparkline className="h-5 w-20 text-emerald-400/50" />
+                </div>
+                <h1 className="text-xl font-semibold tracking-tight text-white">
+                  {mode === "login" ? "Welcome back" : "Create your account"}
+                </h1>
+                <p className="text-sm leading-relaxed text-white/35">
+                  {mode === "login"
+                    ? "Sign in to your Cheentu account to continue."
+                    : "Start your AI-powered stock analysis journey."}
+                </p>
+              </>
+            )}
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="mt-6 flex items-center gap-2 rounded-full border border-[var(--login-accent-border)] bg-[var(--login-accent-soft)] px-3 py-1 text-[10px] font-medium text-[var(--login-accent-text)] backdrop-blur-sm"
-          >
-            <Network className="h-3 w-3" />
-            <span>V3.X QUANTITATIVE SYSTEM</span>
-          </motion.div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative group z-20 pointer-events-auto"
-        >
-          {/* Card Border Glow */}
-          <div className="pointer-events-none absolute -inset-0.5 rounded-3xl bg-gradient-to-b from-[var(--login-accent-glow)] to-[hsl(214_100%_56%_/_0.18)] opacity-50 blur-sm transition duration-1000 group-hover:opacity-100 group-hover:duration-200" />
-
-          <div className="pointer-events-auto relative flex flex-col overflow-hidden rounded-3xl border border-[var(--login-border-card)] bg-[var(--login-bg-card)]/80 p-8 shadow-2xl backdrop-blur-xl">
-            {/* Inner corner glow */}
-            <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-[var(--login-accent-soft)] blur-[50px]" />
-            <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-blue-600/10 blur-[50px]" />
-
-            <div className="mb-8">
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-[var(--login-text-primary)]">
-                {isFirstTime ? (
-                  <>
-                    <ShieldCheck className="h-6 w-6 text-emerald-400" />
-                    <span>{t('login.setupTitle')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-5 w-5 text-[var(--login-accent-text)]" />
-                    <span>{t('login.adminLogin')}</span>
-                  </>
-                )}
-              </h1>
-              <p className="mt-2 text-sm text-[var(--login-text-secondary)]">
-                {isFirstTime
-                  ? t('login.setupDescription')
-                  : t('login.loginDescription')}
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <Input
-                  id="password"
-                  type="password"
-                  appearance="login"
-                  allowTogglePassword
-                  iconType="password"
-                  label={isFirstTime ? t('login.adminPassword') : t('login.loginPassword')}
-                  placeholder={isFirstTime ? t('login.setupPasswordPlaceholder') : t('login.loginPasswordPlaceholder')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isSubmitting}
-                  autoFocus
-                  autoComplete={isFirstTime ? 'new-password' : 'current-password'}
-                />
-
-                {isFirstTime && (
-                  <Input
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <AnimatePresence mode="wait">
+              {isAdminSetup ? (
+                <motion.div
+                  key="admin-setup"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-5"
+                >
+                  <AuthInput
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    icon={<Lock className="h-4 w-4" />}
+                    label="Password"
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={updateField("password")}
+                    disabled={isSubmitting}
+                    autoFocus
+                    autoComplete="new-password"
+                    showToggle={showPassword}
+                    onToggle={() => setShowPassword(!showPassword)}
+                    error={fieldErrors.password}
+                  />
+                  <AuthInput
                     id="passwordConfirm"
-                    type="password"
-                    appearance="login"
-                    allowTogglePassword
-                    iconType="password"
-                    label={t('login.confirmPassword')}
-                    placeholder={t('login.confirmPasswordPlaceholder')}
-                    value={passwordConfirm}
-                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    type={showPassword ? "text" : "password"}
+                    icon={<Lock className="h-4 w-4" />}
+                    label="Confirm Password"
+                    placeholder="••••••••"
+                    value={form.passwordConfirm}
+                    onChange={updateField("passwordConfirm")}
                     disabled={isSubmitting}
                     autoComplete="new-password"
+                    error={fieldErrors.passwordConfirm}
                   />
-                )}
-              </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={mode}
+                  initial={{ opacity: 0, x: mode === "login" ? -10 : 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-5"
+                >
+                  {mode === "register" && (
+                    <>
+                      <AuthInput
+                        id="username"
+                        type="text"
+                        icon={<User className="h-4 w-4" />}
+                        label="Username"
+                        placeholder="yourname"
+                        value={form.username}
+                        onChange={updateField("username")}
+                        disabled={isSubmitting}
+                        autoFocus
+                        autoComplete="username"
+                        error={fieldErrors.username}
+                      />
+                      <AuthInput
+                        id="email"
+                        type="email"
+                        icon={<Mail className="h-4 w-4" />}
+                        label="Email"
+                        placeholder="you@example.com"
+                        value={form.email}
+                        onChange={updateField("email")}
+                        disabled={isSubmitting}
+                        autoComplete="email"
+                        error={fieldErrors.email}
+                      />
+                    </>
+                  )}
 
+                  {mode === "login" && (
+                    <AuthInput
+                      id="username"
+                      type="text"
+                      icon={<User className="h-4 w-4" />}
+                      label="Username"
+                      placeholder="yourname"
+                      value={form.username}
+                      onChange={updateField("username")}
+                      disabled={isSubmitting}
+                      autoFocus
+                      autoComplete="username"
+                      error={fieldErrors.username}
+                    />
+                  )}
+
+                  <AuthInput
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    icon={<Lock className="h-4 w-4" />}
+                    label="Password"
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={updateField("password")}
+                    disabled={isSubmitting}
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    showToggle={showPassword}
+                    onToggle={() => setShowPassword(!showPassword)}
+                    error={fieldErrors.password}
+                  />
+
+                  {mode === "register" && (
+                    <AuthInput
+                      id="passwordConfirm"
+                      type={showPassword ? "text" : "password"}
+                      icon={<Lock className="h-4 w-4" />}
+                      label="Confirm Password"
+                      placeholder="••••••••"
+                      value={form.passwordConfirm}
+                      onChange={updateField("passwordConfirm")}
+                      disabled={isSubmitting}
+                      autoComplete="new-password"
+                      error={fieldErrors.passwordConfirm}
+                    />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Error */}
+            <AnimatePresence>
               {error && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <SettingsAlert
-                    title={isFirstTime ? t('login.setupFailed') : t('login.validationFailed')}
-                    message={isParsedApiError(error) ? error.message : error}
-                    variant="error"
-                    className="!border-[var(--login-error-border)] !bg-[var(--login-error-bg)] !text-[var(--login-error-text)]"
-                  />
+                  <div className="rounded-lg border border-red-500/15 bg-red-500/5 px-4 py-3 text-sm text-red-400/80">
+                    {isParsedApiError(error) ? error.message : error}
+                  </div>
                 </motion.div>
               )}
+            </AnimatePresence>
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="group/btn relative h-12 w-full overflow-hidden rounded-xl border-0 bg-gradient-to-r from-[var(--login-brand-button-start)] to-[var(--login-brand-button-end)] font-medium text-[var(--login-button-text)] shadow-lg shadow-[0_18px_36px_hsl(214_100%_8%_/_0.24)] hover:from-[var(--login-brand-button-start-hover)] hover:to-[var(--login-brand-button-end-hover)]"
-                disabled={isSubmitting}
+            {/* Submit */}
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="group relative h-12 w-full overflow-hidden rounded-xl border-0 bg-white text-sm font-medium text-black transition-all duration-200 hover:bg-white/90 hover:shadow-lg hover:shadow-white/5 active:scale-[0.98] disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {isAdminSetup ? "Setting up..." : mode === "login" ? "Signing in..." : "Creating account..."}
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  {isAdminSetup ? "Set up admin" : mode === "login" ? "Sign in" : "Create account"}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              )}
+            </Button>
+          </form>
+
+          {/* Toggle mode */}
+          {!isAdminSetup && (
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="text-sm text-white/30 transition-colors hover:text-white/60"
               >
-                <div className="relative z-10 flex items-center justify-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>{isFirstTime ? t('login.setupSubmitting') : t('login.loginSubmitting')}</span>
-                    </>
-                  ) : (
-                    <span>{isFirstTime ? t('login.setupSubmit') : t('login.loginSubmit')}</span>
-                  )}
-                </div>
-                <div className="absolute inset-0 z-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
-              </Button>
-            </form>
-          </div>
-        </motion.div>
+                {mode === "login" ? (
+                  <>
+                    Don't have an account?{" "}
+                    <span className="font-medium text-white/70 underline underline-offset-4">Sign up</span>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{" "}
+                    <span className="font-medium text-white/70 underline underline-offset-4">Sign in</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Footer info */}
-        <motion.p 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-8 text-center font-mono text-xs uppercase tracking-wider text-[var(--login-text-muted)]"
-        >
-          Secure Connection Established via DSA-V3-TLS
-        </motion.p>
-      </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes shimmer {
-          100% {
-            transform: translateX(100%);
-          }
-        }
-      `}} />
+        {/* Footer */}
+        <p className="mt-6 text-center text-xs text-white/15">
+          Secure connection · Your data never leaves your server
+        </p>
+      </motion.div>
     </div>
   );
 };
