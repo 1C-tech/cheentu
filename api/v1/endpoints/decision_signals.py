@@ -147,7 +147,7 @@ def list_signals(
     service = DecisionSignalService()
     try:
         return DecisionSignalListResponse(
-            **service.list_signals(
+            **service.list_signals(user_id=get_user_id(request), 
                 market=market,
                 stock_code=stock_code,
                 action=action,
@@ -197,7 +197,7 @@ def run_outcomes(request: DecisionSignalOutcomeRunRequest) -> DecisionSignalOutc
     service = DecisionSignalOutcomeService()
     try:
         return DecisionSignalOutcomeRunResponse(
-            **service.run_outcomes(
+            **service.run_outcomes(user_id=get_user_id(request), 
                 signal_id=request.signal_id,
                 horizons=request.horizons,
                 force=request.force,
@@ -242,7 +242,7 @@ def list_outcomes(
     service = DecisionSignalOutcomeService()
     try:
         return DecisionSignalOutcomeListResponse(
-            **service.list_outcomes(
+            **service.list_outcomes(user_id=get_user_id(request), 
                 signal_id=signal_id,
                 horizon=horizon,
                 engine_version=engine_version,

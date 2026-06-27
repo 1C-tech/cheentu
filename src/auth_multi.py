@@ -202,6 +202,17 @@ def update_user_llm(db: Session, user_id: int, updates: dict) -> Tuple[Optional[
     return user, None
 
 
+
+
+def update_user_notification(db, user_id, notification_channels):
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return None, 'User not found'
+    user.notification_channels = json.dumps(notification_channels)
+    db.commit()
+    db.refresh(user)
+    return user, None
+
 def count_users(db: Session) -> int:
     return db.query(User).count()
 

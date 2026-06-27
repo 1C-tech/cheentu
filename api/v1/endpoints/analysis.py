@@ -29,7 +29,7 @@ from typing import Optional, Union, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from api.deps import get_config_dep
+from api.deps import get_user_id, get_config_dep
 from api.v1.errors import api_error
 from api.v1.schemas.analysis import (
     AnalyzeRequest,

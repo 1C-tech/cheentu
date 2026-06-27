@@ -107,7 +107,8 @@ def list_accounts(
 ) -> PortfolioAccountListResponse:
     service = PortfolioService()
     try:
-        rows = service.list_accounts(include_inactive=include_inactive)
+        user_id = get_user_id(request)
+        rows = service.list_accounts(include_inactive=include_inactive, user_id=user_id)
         return PortfolioAccountListResponse(accounts=[PortfolioAccountItem(**item) for item in rows])
     except Exception as exc:
         raise _internal_error("List accounts failed", exc)

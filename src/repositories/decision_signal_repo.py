@@ -154,6 +154,7 @@ class DecisionSignalRepository:
     def list(
         self,
         *,
+        user_id: Optional[int] = None,
         stock_codes: Optional[List[str]] = None,
         stock_identities: Optional[List[Tuple[str, str]]] = None,
         market: Optional[str] = None,
@@ -177,6 +178,7 @@ class DecisionSignalRepository:
         expires_from = self._normalize_optional_datetime(expires_from)
         expires_to = self._normalize_optional_datetime(expires_to)
         conditions = self._build_conditions(
+            user_id=user_id,
             stock_codes=stock_codes,
             stock_identities=stock_identities,
             market=market,

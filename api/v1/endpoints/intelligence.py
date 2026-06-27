@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from api.deps import get_user_id
 
 from api.v1.schemas.common import ErrorResponse
 from api.v1.schemas.intelligence import (
@@ -153,6 +154,7 @@ def fetch_enabled_sources() -> IntelligenceFetchResponse:
 
 @router.get("/items", response_model=IntelligenceItemListResponse, responses={500: {"model": ErrorResponse}}, summary="List persisted intelligence items")
 def list_items(
+    request: Request,
     scope_type: Optional[str] = Query(None),
     scope_value: Optional[str] = Query(None),
     market: Optional[str] = Query(None),
@@ -162,9 +164,11 @@ def list_items(
     page_size: int = Query(50, ge=1, le=100),
 ) -> IntelligenceItemListResponse:
     try:
+        user_id = get_user_id(request)
         return IntelligenceItemListResponse(**IntelligenceService().list_items(
             scope_type=scope_type, scope_value=scope_value, market=market,
             query=query, days=days, page=page, page_size=page_size,
+            user_id=user_id,
         ))
     except Exception as exc:
         raise _internal_error("List intelligence items failed", exc)

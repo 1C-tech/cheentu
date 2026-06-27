@@ -100,6 +100,7 @@ class DecisionSignalService:
     def list_signals(
         self,
         *,
+        user_id: Optional[int] = None,
         stock_code: Optional[str] = None,
         market: Optional[str] = None,
         action: Optional[str] = None,
@@ -171,6 +172,7 @@ class DecisionSignalService:
                 return {"items": [], "total": 0, "page": safe_page, "page_size": safe_page_size}
 
         rows, total = self.repo.list(
+            user_id=user_id,
             stock_codes=stock_codes,
             stock_identities=stock_identity_filters,
             market=market_norm,

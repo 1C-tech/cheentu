@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import get_db
 from src.auth_multi import (
+    update_user_notification,
     authenticate_user,
     count_users,
     create_jwt_token,
@@ -226,12 +227,15 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
         return JSONResponse(status_code=401, content={"error": "unauthorized", "message": "Not authenticated"})
 
     config = get_user_config(db, user.id)
-    import json
     return {
         "user": user.to_dict(),
         "config": {
             "stock_list": json.loads(config.stock_list or "[]") if config else [],
             "language": config.language if config else "zh",
+            "notification_channels": json.loads(user.notification_channels or "{}"),
+            "deepseek_api_key": bool(user.deepseek_api_key),
+            "deepseek_base_url": user.deepseek_base_url or "",
+            "llm_model": user.llm_model or "",
         },
     }
 
@@ -251,6 +255,12 @@ async def update_my_config(request: Request, body: UserConfigUpdate, db: Session
         uc_updates["language"] = body.language
     if uc_updates:
         _, error = update_user_config(db, user.id, uc_updates)
+        if error:
+            return JSONResponse(status_code=500, content={"error": "update_failed", "message": error})
+
+    # Update notification_channels
+    if body.notification_channels is not None:
+        _, error = update_user_notification(db, user.id, body.notification_channels)
         if error:
             return JSONResponse(status_code=500, content={"error": "update_failed", "message": error})
 

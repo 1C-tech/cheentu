@@ -160,6 +160,31 @@ def get_system_config(
                         "DEEPSEEK_BASE_URL": user.deepseek_base_url,
                         "LLM_MODEL": user.llm_model,
                     }
+                    # Overlay notification channels from user record
+                    nc = json.loads(user.notification_channels or "{}")
+                    # Map notification channel JSON keys to system config env keys
+                    nc_key_map = {
+                        "wechat_webhook_url": "WECHAT_WEBHOOK_URL",
+                        "feishu_webhook_url": "FEISHU_WEBHOOK_URL",
+                        "feishu_app_id": "FEISHU_APP_ID",
+                        "feishu_app_secret": "FEISHU_APP_SECRET",
+                        "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
+                        "telegram_chat_id": "TELEGRAM_CHAT_ID",
+                        "email_sender": "EMAIL_SENDER",
+                        "email_password": "EMAIL_PASSWORD",
+                        "email_receivers": "EMAIL_RECEIVERS",
+                        "pushover_user_key": "PUSHOVER_USER_KEY",
+                        "pushover_api_token": "PUSHOVER_API_TOKEN",
+                        "ntfy_url": "NTFY_URL",
+                        "ntfy_token": "NTFY_TOKEN",
+                        "gotify_url": "GOTIFY_URL",
+                        "gotify_token": "GOTIFY_TOKEN",
+                    }
+                    for nc_key, env_key in nc_key_map.items():
+                        value = nc.get(nc_key)
+                        if value and env_key in items_dict:
+                            items_dict[env_key]["value"] = value
+
                     for key, value in user_keys.items():
                         if value and key in items_dict:
                             items_dict[key]["value"] = value
