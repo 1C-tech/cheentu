@@ -85,6 +85,8 @@ function makeAuthState(overrides: Partial<AuthState> = {}): AuthState {
     changePassword: vi.fn().mockResolvedValue({ success: true }),
     logout: vi.fn().mockResolvedValue(undefined),
     refreshStatus: vi.fn().mockResolvedValue(undefined),
+    currentUsername: null,
+    multiUser: false,
     ...overrides,
   };
 }

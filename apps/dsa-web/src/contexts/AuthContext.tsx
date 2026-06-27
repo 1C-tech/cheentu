@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Multi-user login: login(username, password)
   // Admin setup: login(password, passwordConfirm)
   const login = useCallback<LoginFn>(
-    async (arg1, arg2, arg3) => {
+    async (arg1, arg2, _arg3) => {
       try {
         if (setupState === 'no_password' || (!passwordSet && !multiUser)) {
           // Admin first-time setup: password + confirm

@@ -1,9 +1,8 @@
 ﻿import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "motion/react";
+import { motion, AnimatePresence, useMotionValue, useSpring } from "motion/react";
 import { Lock, Mail, User, Loader2, TrendingUp, ShieldCheck, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "../components/common";
 import { UiLanguageToggle } from "../components/i18n/UiLanguageToggle";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import type { ParsedApiError } from "../api/error";
 import { isParsedApiError } from "../api/error";
 import { useAuth } from "../hooks";
@@ -164,10 +163,6 @@ const AuthInput: React.FC<AuthInputProps> = ({
 const LoginPage: React.FC = () => {
   const { login, register, passwordSet, setupState } = useAuth();
   const { t } = useUiLanguage();
-  const [searchParams] = useSearchParams();
-  const rawRedirect = searchParams.get("redirect") ?? "";
-  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
-
   const [mode, setMode] = useState<Mode>("login");
   const [form, setForm] = useState<FormState>({
     username: "",
