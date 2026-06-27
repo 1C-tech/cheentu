@@ -164,7 +164,6 @@ const AuthInput: React.FC<AuthInputProps> = ({
 const LoginPage: React.FC = () => {
   const { login, register, passwordSet, setupState } = useAuth();
   const { t } = useUiLanguage();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rawRedirect = searchParams.get("redirect") ?? "";
   const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
@@ -227,14 +226,12 @@ const LoginPage: React.FC = () => {
         // Admin first-time setup: password only
         const result = await login(form.password, form.passwordConfirm || undefined);
         if (result.success) {
-          navigate(redirect, { replace: true });
         } else {
           setError(result.error ?? t("auth.errorSetupFailed"));
         }
       } else if (mode === "login") {
         const result = await login(form.username, form.password);
         if (result.success) {
-          navigate(redirect, { replace: true });
         } else {
           setError(result.error ?? t("auth.errorLoginFailed"));
         }
@@ -245,7 +242,6 @@ const LoginPage: React.FC = () => {
           // Auto-login after register
           const loginResult = await login(form.username, form.password);
           if (loginResult.success) {
-            navigate(redirect, { replace: true });
           } else {
             setMode("login");
             setError(t("auth.errorAccountCreated"));
