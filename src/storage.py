@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 ===================================
 A股自选股智能分析系统 - 存储层
@@ -175,6 +175,7 @@ class NewsIntel(Base):
     __tablename__ = 'news_intel'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
 
     # 关联用户查询操作
     query_id = Column(String(64), index=True)
@@ -245,6 +246,7 @@ class IntelligenceItem(Base):
     __tablename__ = 'intelligence_items'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
     source_id = Column(Integer, ForeignKey('intelligence_sources.id', ondelete='SET NULL'), nullable=True, index=True)
     source_name = Column(String(100), index=True)
     source_type = Column(String(32), nullable=False, default='rss', index=True)
@@ -307,6 +309,7 @@ class AnalysisHistory(Base):
     __tablename__ = 'analysis_history'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
 
     # 关联查询链路
     query_id = Column(String(64), index=True)
@@ -368,6 +371,7 @@ class BacktestResult(Base):
     __tablename__ = 'backtest_results'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
 
     analysis_history_id = Column(
         Integer,
@@ -436,6 +440,7 @@ class BacktestSummary(Base):
     __tablename__ = 'backtest_summaries'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
 
     scope = Column(String(16), nullable=False, index=True)  # overall/stock
     code = Column(String(16), index=True)
@@ -491,6 +496,7 @@ class PortfolioAccount(Base):
     __tablename__ = 'portfolio_accounts'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
     owner_id = Column(String(64), index=True)
     name = Column(String(64), nullable=False)
     broker = Column(String(64))
@@ -986,6 +992,7 @@ class DecisionSignalRecord(Base):
     __tablename__ = 'decision_signals'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
     stock_code = Column(String(16), nullable=False, index=True)
     stock_name = Column(String(64))
     market = Column(String(8), nullable=False, index=True)
@@ -1050,6 +1057,7 @@ class DecisionSignalOutcomeRecord(Base):
     __tablename__ = 'decision_signal_outcomes'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None, index=True)
     signal_id = Column(Integer, nullable=False, index=True)
     horizon = Column(String(16), nullable=False, index=True)
     engine_version = Column(String(32), nullable=False, index=True)
@@ -1222,6 +1230,7 @@ class DatabaseManager(metaclass=_DatabaseManagerMeta):
 
             # 创建所有表
             Base.metadata.create_all(self._engine)
+            self._migrate_user_ids()
             self._ensure_llm_usage_telemetry_columns()
             self._ensure_intelligence_item_scope_values()
             self._ensure_schema_migration_record()
@@ -1448,6 +1457,27 @@ class DatabaseManager(metaclass=_DatabaseManagerMeta):
                 )
         except Exception as exc:
             logger.warning("资讯池 scope_value 回填失败，已跳过: %s", exc)
+
+    @classmethod
+
+    def _migrate_user_ids(self):
+        """Set user_id=1 for existing records (admin data migration)."""
+        from sqlalchemy import text
+        tables_with_user = [
+            "analysis_history", "backtest_results", "backtest_summaries",
+            "portfolio_account", "news_intel", "decision_signal_records",
+            "decision_signal_outcomes", "intelligence_items",
+        ]
+        try:
+            with self._engine.connect() as conn:
+                for t in tables_with_user:
+                    try:
+                        conn.execute(text(f"UPDATE {t} SET user_id = 1 WHERE user_id IS NULL"))
+                        conn.commit()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
     @classmethod
     def get_instance(cls) -> 'DatabaseManager':

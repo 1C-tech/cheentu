@@ -153,6 +153,7 @@ class HistoryService:
     
     def get_history_list(
         self,
+        user_id: Optional[int] = None,
         stock_code: Optional[str] = None,
         report_type: Optional[str] = None,
         start_date: Optional[str] = None,

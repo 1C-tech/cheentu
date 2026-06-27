@@ -79,3 +79,16 @@ def get_runtime_scheduler_service(request: Request) -> RuntimeSchedulerService:
         service = RuntimeSchedulerService()
         request.app.state.runtime_scheduler_service = service
     return service
+
+def get_user_id(request: Request) -> int | None:
+    """Extract current user_id from request state (set by auth middleware)."""
+    return getattr(request.state, "user_id", None)
+
+def require_user_id(request: Request) -> int:
+    """Require authenticated user_id or raise 401."""
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user_id
+

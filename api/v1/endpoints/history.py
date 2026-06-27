@@ -12,9 +12,9 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Depends, Body
+from fastapi import APIRouter, Request, HTTPException, Query, Depends, Body
 
-from api.deps import get_database_manager
+from api.deps import get_database_manager, get_user_id
 from api.v1.schemas.history import (
     HistoryListResponse,
     HistoryItem,
@@ -82,6 +82,7 @@ def _normalize_code_for_grouping(code: str) -> str:
     description="分页获取历史分析记录摘要，支持按股票代码和日期范围筛选"
 )
 def get_history_list(
+    request: Request,
     stock_code: Optional[str] = Query(None, description="股票代码筛选"),
     report_type: Optional[str] = Query(None, description="报告类型筛选，如 market_review"),
     start_date: Optional[str] = Query(None, description="开始日期 (YYYY-MM-DD)"),
@@ -112,6 +113,7 @@ def get_history_list(
         
         # 使用 def 而非 async def，FastAPI 自动在线程池中执行
         result = service.get_history_list(
+            user_id=getattr(request.state, 'user_id', None),
             stock_code=stock_code,
             report_type=report_type,
             start_date=start_date,

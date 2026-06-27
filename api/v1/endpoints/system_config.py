@@ -29,6 +29,8 @@ from api.v1.schemas.system_config import (
     ValidateSystemConfigResponse,
 )
 from src.auth import COOKIE_NAME, is_auth_enabled, refresh_auth_state, verify_session
+from src.storage import DatabaseManager, User
+from src.auth_multi import get_user_by_id
 from src.services.system_config_service import (
     ConfigConflictError,
     ConfigImportError,
@@ -137,12 +139,34 @@ def _raise_env_backup_access_error(exc: EnvBackupAccessDenied) -> None:
     ),
 )
 def get_system_config(
+    request: Request,
     include_schema: bool = Query(True, description="Whether to include schema metadata"),
     service: SystemConfigService = Depends(get_system_config_service),
 ) -> SystemConfigResponse:
-    """Load and return current system configuration."""
+    """Load and return current system configuration, with per-user key overlay."""
     try:
         payload = service.get_config(include_schema=include_schema)
+        
+        # Overlay user's personal API keys if authenticated
+        user_id = getattr(request.state, "user_id", None)
+        if user_id:
+            db = DatabaseManager.get_instance().get_session()
+            try:
+                user = get_user_by_id(db, user_id)
+                if user:
+                    items_dict = {item["key"]: item for item in payload.get("items", [])}
+                    user_keys = {
+                        "DEEPSEEK_API_KEY": user.deepseek_api_key,
+                        "DEEPSEEK_BASE_URL": user.deepseek_base_url,
+                        "LLM_MODEL": user.llm_model,
+                    }
+                    for key, value in user_keys.items():
+                        if value and key in items_dict:
+                            items_dict[key]["value"] = value
+                    payload["items"] = list(items_dict.values())
+            finally:
+                db.close()
+        
         return SystemConfigResponse.model_validate(payload)
     except Exception as exc:
         logger.error("Failed to load system configuration: %s", exc, exc_info=True)
@@ -197,7 +221,8 @@ def get_setup_status(
     description="Update key-value pairs in .env. Mask token preserves existing secret values.",
 )
 def update_system_config(
-    request: UpdateSystemConfigRequest,
+    req: UpdateSystemConfigRequest,
+    http_request: Request,
     service: SystemConfigService = Depends(get_system_config_service),
 ) -> UpdateSystemConfigResponse:
     """Validate and persist system configuration updates."""
