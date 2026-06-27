@@ -1100,6 +1100,48 @@ class DecisionSignalFeedbackRecord(Base):
     updated_at = Column(DateTime, default=utc_naive_now, onupdate=utc_naive_now, index=True)
 
 
+
+
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(64), unique=True, nullable=False, index=True)
+    password_hash = Column(String(128), nullable=False)
+    email = Column(String(128), default='', index=True)
+    created_at = Column(DateTime, default=utc_naive_now, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    deepseek_api_key = Column(String(128), default='')
+    deepseek_base_url = Column(String(256), default='')
+    llm_model = Column(String(64), default='')
+
+    notification_channels = Column(Text, default='{}')
+
+    def to_dict(self) -> dict:
+        import json
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'is_active': self.is_active,
+            'deepseek_api_key': self.deepseek_api_key,
+            'deepseek_base_url': self.deepseek_base_url,
+            'llm_model': self.llm_model,
+            'notification_channels': json.loads(self.notification_channels or '{}'),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class UserConfig(Base):
+    __tablename__ = 'user_configs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), unique=True, nullable=False, index=True)
+    stock_list = Column(Text, default='[]')
+    language = Column(String(8), default='zh')
+    updated_at = Column(DateTime, default=utc_naive_now, onupdate=utc_naive_now)
+
 class _DatabaseManagerMeta(type):
     """Serialize DatabaseManager construction across __new__ and __init__."""
 

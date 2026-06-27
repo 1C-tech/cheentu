@@ -140,6 +140,8 @@ from api.v1.schemas.common import HealthResponse
 from src.auth import is_auth_enabled
 from src.data.stock_index_loader import find_existing_stock_index_path
 from src.services.system_config_service import SystemConfigService
+from src.storage import DatabaseManager
+from src.auth_multi import seed_admin_user
 from src.services.runtime_scheduler import (
     CLI_SCHEDULER_OWNER_ENV,
     RUNTIME_SCHEDULER_ARGS_ENV,
@@ -259,6 +261,16 @@ async def app_lifespan(app: FastAPI):
         runtime_scheduler=app.state.runtime_scheduler_service,
     )
     _schedule_stock_index_background_refresh(app, "startup")
+    try:
+        # Seed admin user on first run
+        db_manager = DatabaseManager.get_instance()
+        db = db_manager.get_session()
+        try:
+            seed_admin_user(db)
+        finally:
+            db.close()
+    except Exception:
+        pass
     try:
         yield
     finally:

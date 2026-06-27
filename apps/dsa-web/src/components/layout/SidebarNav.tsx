@@ -40,7 +40,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed = false, onNavigate, variant = 'default' }) => {
-  const { authEnabled, logout } = useAuth();
+  const { authEnabled, loggedIn, multiUser, logout } = useAuth();
   const { t } = useUiLanguage();
   const completionBadge = useAgentChatStore((state) => state.completionBadge);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -171,7 +171,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed = false, onNav
         />
       </nav>
 
-      {authEnabled ? (
+      {(authEnabled || loggedIn || multiUser) ? (
         <button
           type="button"
           onClick={() => setShowLogoutConfirm(true)}

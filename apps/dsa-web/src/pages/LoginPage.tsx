@@ -195,21 +195,21 @@ const LoginPage: React.FC = () => {
 
     if (mode === "register" || (!isAdminSetup && mode === "login")) {
       if (!form.username.trim() || form.username.trim().length < 3) {
-        errors.username = "Username must be at least 3 characters";
+        errors.username = t("auth.validationUsernameLength");
       }
     }
 
     if (mode === "register") {
       if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        errors.email = "Please enter a valid email";
+        errors.email = t("auth.validationEmail");
       }
       if (form.password !== form.passwordConfirm) {
-        errors.passwordConfirm = "Passwords do not match";
+        errors.passwordConfirm = t("auth.validationPasswordMatch");
       }
     }
 
     if (!form.password || form.password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+      errors.password = t("auth.validationPasswordLength");
     }
 
     setFieldErrors(errors);
@@ -229,14 +229,14 @@ const LoginPage: React.FC = () => {
         if (result.success) {
           navigate(redirect, { replace: true });
         } else {
-          setError(result.error ?? "Setup failed");
+          setError(result.error ?? t("auth.errorSetupFailed"));
         }
       } else if (mode === "login") {
         const result = await login(form.username, form.password);
         if (result.success) {
           navigate(redirect, { replace: true });
         } else {
-          setError(result.error ?? "Login failed");
+          setError(result.error ?? t("auth.errorLoginFailed"));
         }
       } else {
         // Register
@@ -248,10 +248,10 @@ const LoginPage: React.FC = () => {
             navigate(redirect, { replace: true });
           } else {
             setMode("login");
-            setError("Account created! Please log in.");
+            setError(t("auth.errorAccountCreated"));
           }
         } else {
-          setError(result.error ?? "Registration failed");
+          setError(result.error ?? t("auth.errorRegisterFailed"));
         }
       }
     } finally {
@@ -267,7 +267,7 @@ const LoginPage: React.FC = () => {
 
   // Page title
   useEffect(() => {
-    document.title = mode === "login" ? "Cheentu — Sign In" : "Cheentu — Create Account";
+    document.title = mode === "login" ? `Cheentu — ${t("auth.pageTitleSignIn")}` : `Cheentu — ${t("auth.pageTitleRegister")}`;
   }, [mode]);
 
   return (
@@ -325,9 +325,9 @@ const LoginPage: React.FC = () => {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20">
                   <ShieldCheck className="h-5 w-5 text-emerald-400" />
                 </div>
-                <h1 className="text-xl font-semibold tracking-tight text-white">Set Up Admin Password</h1>
+                <h1 className="text-xl font-semibold tracking-tight text-white">{t("auth.adminSetupTitle")}</h1>
                 <p className="text-sm leading-relaxed text-white/35">
-                  First-time setup. Choose a strong password for the admin account.
+                  {t("auth.adminSetupDesc")}
                 </p>
               </>
             ) : (
@@ -336,12 +336,12 @@ const LoginPage: React.FC = () => {
                   <Sparkline className="h-5 w-20 text-emerald-400/50" />
                 </div>
                 <h1 className="text-xl font-semibold tracking-tight text-white">
-                  {mode === "login" ? "Welcome back" : "Create your account"}
+                  {mode === "login" ? t("auth.welcomeBack") : t("auth.createAccount")}
                 </h1>
                 <p className="text-sm leading-relaxed text-white/35">
                   {mode === "login"
-                    ? "Sign in to your Cheentu account to continue."
-                    : "Start your AI-powered stock analysis journey."}
+                    ? t("auth.signInDesc")
+                    : t("auth.createAccountDesc")}
                 </p>
               </>
             )}
@@ -362,8 +362,8 @@ const LoginPage: React.FC = () => {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     icon={<Lock className="h-4 w-4" />}
-                    label="Password"
-                    placeholder="••••••••"
+                    label={t("auth.password")}
+                    placeholder={t("auth.passwordPlaceholder")}
                     value={form.password}
                     onChange={updateField("password")}
                     disabled={isSubmitting}
@@ -377,8 +377,8 @@ const LoginPage: React.FC = () => {
                     id="passwordConfirm"
                     type={showPassword ? "text" : "password"}
                     icon={<Lock className="h-4 w-4" />}
-                    label="Confirm Password"
-                    placeholder="••••••••"
+                    label={t("auth.confirmPassword")}
+                    placeholder={t("auth.passwordPlaceholder")}
                     value={form.passwordConfirm}
                     onChange={updateField("passwordConfirm")}
                     disabled={isSubmitting}
@@ -400,8 +400,8 @@ const LoginPage: React.FC = () => {
                         id="username"
                         type="text"
                         icon={<User className="h-4 w-4" />}
-                        label="Username"
-                        placeholder="yourname"
+                        label={t("auth.username")}
+                        placeholder={t("auth.usernamePlaceholder")}
                         value={form.username}
                         onChange={updateField("username")}
                         disabled={isSubmitting}
@@ -413,8 +413,8 @@ const LoginPage: React.FC = () => {
                         id="email"
                         type="email"
                         icon={<Mail className="h-4 w-4" />}
-                        label="Email"
-                        placeholder="you@example.com"
+                        label={t("auth.email")}
+                        placeholder={t("auth.emailPlaceholder")}
                         value={form.email}
                         onChange={updateField("email")}
                         disabled={isSubmitting}
@@ -429,8 +429,8 @@ const LoginPage: React.FC = () => {
                       id="username"
                       type="text"
                       icon={<User className="h-4 w-4" />}
-                      label="Username"
-                      placeholder="yourname"
+                      label={t("auth.username")}
+                      placeholder={t("auth.usernamePlaceholder")}
                       value={form.username}
                       onChange={updateField("username")}
                       disabled={isSubmitting}
@@ -444,8 +444,8 @@ const LoginPage: React.FC = () => {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     icon={<Lock className="h-4 w-4" />}
-                    label="Password"
-                    placeholder="••••••••"
+                    label={t("auth.password")}
+                    placeholder={t("auth.passwordPlaceholder")}
                     value={form.password}
                     onChange={updateField("password")}
                     disabled={isSubmitting}
@@ -460,8 +460,8 @@ const LoginPage: React.FC = () => {
                       id="passwordConfirm"
                       type={showPassword ? "text" : "password"}
                       icon={<Lock className="h-4 w-4" />}
-                      label="Confirm Password"
-                      placeholder="••••••••"
+                      label={t("auth.confirmPassword")}
+                      placeholder={t("auth.passwordPlaceholder")}
                       value={form.passwordConfirm}
                       onChange={updateField("passwordConfirm")}
                       disabled={isSubmitting}
@@ -500,11 +500,11 @@ const LoginPage: React.FC = () => {
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {isAdminSetup ? "Setting up..." : mode === "login" ? "Signing in..." : "Creating account..."}
+                  {isAdminSetup ? t("auth.adminSetupSubmitting") : mode === "login" ? t("auth.signingIn") : t("auth.creatingAccount")}
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  {isAdminSetup ? "Set up admin" : mode === "login" ? "Sign in" : "Create account"}
+                  {isAdminSetup ? t("auth.adminSetupSubmit") : mode === "login" ? t("auth.signIn") : t("auth.signUp")}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               )}
@@ -521,13 +521,13 @@ const LoginPage: React.FC = () => {
               >
                 {mode === "login" ? (
                   <>
-                    Don't have an account?{" "}
-                    <span className="font-medium text-white/70 underline underline-offset-4">Sign up</span>
+                    {t("auth.noAccount")}{" "}
+                    <span className="font-medium text-white/70 underline underline-offset-4">{t("auth.signUp")}</span>
                   </>
                 ) : (
                   <>
-                    Already have an account?{" "}
-                    <span className="font-medium text-white/70 underline underline-offset-4">Sign in</span>
+                    {t("auth.hasAccount")}{" "}
+                    <span className="font-medium text-white/70 underline underline-offset-4">{t("auth.signIn")}</span>
                   </>
                 )}
               </button>
@@ -537,7 +537,7 @@ const LoginPage: React.FC = () => {
 
         {/* Footer */}
         <p className="mt-6 text-center text-xs text-white/15">
-          Secure connection · Your data never leaves your server
+          {t("auth.footerSecure")}
         </p>
       </motion.div>
     </div>
